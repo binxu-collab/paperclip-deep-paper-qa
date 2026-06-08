@@ -163,6 +163,40 @@ trainer reads directly:
 
 ---
 
+### Data examples
+
+**Training traces (SFT)** — full multi-turn transcripts; loss is on the assistant
+turns only (tool results abbreviated):
+
+```
+Q: p-value for optogenetic inhibition's effect on I_NaT amplitude in A31k
+   interneurons at L3?  (DOI 10.64898/2025.12.01.691172)
+ → paperclip: lookup doi 10.64898/2025.12.01.691172
+ → paperclip: scan content.lines "I_NaT" "INaT" "sodium current" "A31k"
+ A: p = 0.034.
+
+Q: mean size (nm) of microglial extracellular vesicles by TRPS?
+   (DOI 10.1101/2025.02.28.640756)
+ → paperclip: lookup doi 10.1101/2025.02.28.640756
+ → paperclip: scan content.lines "TRPS" "tunable resistive pulse" "mean size" "nm"
+ A: 186.8 ± 11 nm (mode 130.6 ± 7.8 nm).   {citation: doc 13fb…b2ce, line 26}
+
+Q: # of answer options for the cooking oil/fat question in the diet questionnaire?
+   (DOI 10.1101/2025.07.31.667939)
+ → paperclip: lookup doi 10.1101/2025.07.31.667939
+ → paperclip: scan content.lines "oil" "fat" "cooking" "frying"
+ A: Question 30 provides 6 distinct answer options.   {citation: doc d068…824d, line 250}
+```
+
+**Eval items** — question + machine-checkable ground truth (`"The solution is: X"`),
+across `main_text` and `supplementary_*` splits:
+
+| Category | Question (abbreviated) | Ground truth |
+|---|---|---|
+| `main_text` | % of endocytic-pathway BMPs in the lysosome? (DOI …638174) | `The solution is: 95%` |
+| `supplementary_pdf` | amplicon size (bp) for *C. beijerinckii* PCR primer? (DOI …660799) | `The solution is: 448` |
+| `supplementary_docx` | stat test + correction for THP-1 surface markers? (DOI …650444) | `The solution is: Two-way ANOVA followed by Dunnett's multiple comparisons test` |
+
 ## 5. Stage 2 — Supervised Fine-Tuning (SFT)
 
 We teach the student to *imitate the teacher's tool-use trajectory*. Training uses

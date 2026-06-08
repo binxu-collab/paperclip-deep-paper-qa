@@ -144,6 +144,22 @@ hr{border:none;border-top:1px solid var(--border-light);margin:48px 0}
 .fig figcaption{font-size:.82em;color:var(--fg-muted);text-align:center;margin-top:10px;line-height:1.5}
 .fig figcaption strong{color:var(--fg-secondary)}
 
+/* ── data examples ── */
+.ex{border:1px solid var(--border);border-radius:8px;padding:16px 18px;margin:14px 0;background:#fff}
+.ex-lbl{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--fg-muted)}
+.ex-q{font-size:.9em;color:var(--fg);line-height:1.55;margin:4px 0 12px}
+.ex-q .doi{font-family:var(--mono);font-size:.86em;color:var(--accent)}
+.ex-step{font-family:var(--mono);font-size:.8em;color:var(--fg-secondary);background:var(--bg-offset);border:1px solid var(--border-light);border-radius:5px;padding:7px 10px;margin:5px 0;overflow-x:auto;white-space:nowrap}
+.ex-step b{color:var(--accent);font-weight:500}
+.ex-tool{font-size:.78em;color:var(--fg-muted);font-style:italic;margin:2px 0 2px 10px}
+.ex-ans{margin-top:12px;padding:10px 14px;background:var(--agent-bg);border-left:3px solid var(--agent);border-radius:0 6px 6px 0;font-size:.88em;color:var(--fg-secondary);line-height:1.55}
+.ex-ans b{color:var(--agent)}
+.evalcard{border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin:12px 0;background:#fff}
+.eval-cat{display:inline-block;font-family:var(--mono);font-size:10px;background:var(--accent-light);color:var(--accent);padding:2px 8px;border-radius:4px;margin-bottom:8px}
+.eval-q{font-size:.9em;color:var(--fg);line-height:1.55;margin:0 0 10px}
+.eval-gt{font-family:var(--mono);font-size:.82em;color:var(--agent);background:var(--agent-bg);border:1px solid var(--agent-border);border-radius:5px;padding:6px 10px;display:inline-block}
+.eval-gt .k{color:var(--fg-muted)}
+
 /* ── callout ── */
 .callout{background:var(--accent-light);border-left:3px solid var(--accent);border-radius:0 6px 6px 0;padding:14px 18px;margin:22px 0;font-size:.9em;color:var(--fg-secondary);line-height:1.65}
 .callout strong{color:var(--accent)}
@@ -173,6 +189,7 @@ hr{border:none;border-top:1px solid var(--border-light);margin:48px 0}
     <a href="#tool">The Tool: Paperclip / MCP</a>
     <a href="#pipeline">Overall Pipeline</a>
     <a href="#data">1 · Data Collection</a>
+    <a href="#examples">· Data Examples</a>
     <a href="#sft">2 · Supervised Fine-Tuning</a>
     <a href="#rl">3 · Reinforcement Learning</a>
     <a href="#eval">4 · Evaluation</a>
@@ -281,6 +298,61 @@ hr{border:none;border-top:1px solid var(--border-light);margin:48px 0}
       <div class="hbar-row"><span class="hbar-name">user</span><span class="hbar-track"><span class="hbar-fill" style="width:20.2%;opacity:.5"></span></span><span class="hbar-val">1,353</span></div>
       <div class="hbar-row"><span class="hbar-name">system</span><span class="hbar-track"><span class="hbar-fill" style="width:20.2%;opacity:.5"></span></span><span class="hbar-val">1,353</span></div>
       <div class="caption">Message-role distribution across the SFT set — loss is applied to assistant turns only.</div>
+    </div>
+
+    <h2 id="examples">Data Examples</h2>
+    <p>Concrete is better than abstract. Here are real records from the two datasets.</p>
+
+    <h3>Training traces (SFT) — teacher drives paperclip, end to end</h3>
+    <p>Each training row is a full multi-turn transcript. The model is trained on the <strong>assistant</strong> turns (the tool calls and the final answer); the user turn and the tool results are context only. Tool results are abbreviated below.</p>
+
+    <div class="ex">
+      <div class="ex-lbl">Question</div>
+      <div class="ex-q">What p-value was reported for the effect of optogenetic inhibition during the embryonic critical period on the transient sodium current (I<sub>NaT</sub>) amplitude in A31k interneurons at the third-instar larval stage? <span class="doi">DOI 10.64898/2025.12.01.691172</span></div>
+      <div class="ex-step">▸ paperclip <b>lookup doi 10.64898/2025.12.01.691172</b></div>
+      <div class="ex-tool">→ found 1 paper · cd into /papers/c791…ada4b</div>
+      <div class="ex-step">▸ paperclip <b>scan content.lines "I_NaT" "INaT" "sodium current" "A31k"</b></div>
+      <div class="ex-tool">→ matching passages with block IDs</div>
+      <div class="ex-ans"><b>Answer:</b> The p-value was <b>p = 0.034</b> — “Optogenetic inhibition between 17–19 h … reduced I<sub>NaT</sub> amplitude (p = 0.034).”</div>
+    </div>
+
+    <div class="ex">
+      <div class="ex-lbl">Question</div>
+      <div class="ex-q">What was the mean size (in nm) of microglial extracellular vesicles as characterized by tunable resistive pulse sensing (TRPS)? <span class="doi">DOI 10.1101/2025.02.28.640756</span></div>
+      <div class="ex-step">▸ paperclip <b>lookup doi 10.1101/2025.02.28.640756</b></div>
+      <div class="ex-step">▸ paperclip <b>scan content.lines "TRPS" "tunable resistive pulse" "mean size" "nm"</b></div>
+      <div class="ex-tool">→ matching passages with block IDs</div>
+      <div class="ex-ans"><b>Answer:</b> Mean size <b>186.8 ± 11 nm</b> (mode 130.6 ± 7.8 nm). <code>{citation: doc 13fb…b2ce, line 26}</code></div>
+    </div>
+
+    <div class="ex">
+      <div class="ex-lbl">Question</div>
+      <div class="ex-q">In the dietary &amp; lifestyle questionnaire, how many distinct answer options are provided for the question about the type of oil or fat used most often for cooking? <span class="doi">DOI 10.1101/2025.07.31.667939</span></div>
+      <div class="ex-step">▸ paperclip <b>lookup doi 10.1101/2025.07.31.667939</b></div>
+      <div class="ex-step">▸ paperclip <b>scan content.lines "oil" "fat" "cooking" "frying"</b></div>
+      <div class="ex-tool">→ 4 patterns, 16 matches across the questionnaire</div>
+      <div class="ex-ans"><b>Answer:</b> Question 30 (“What type of oil or fat do you use most often for cooking?”) provides <b>6 distinct answer options</b>. <code>{citation: doc d068…824d, line 250}</code></div>
+    </div>
+
+    <h3>Eval items — question + machine-checkable ground truth</h3>
+    <p>Each eval item pairs a question with a single ground-truth <code>criteria</code> string of the form <code>"The solution is: X"</code>. The judge (and the RL reward) checks the answer against <code>X</code> by normalized substring match or numeric proximity. Categories span <code>main_text</code> and the harder <code>supplementary_*</code> splits (PDF / DOCX / Excel supplements).</p>
+
+    <div class="evalcard">
+      <span class="eval-cat">main_text</span>
+      <div class="eval-q">According to DOI 10.1101/2025.02.13.638174, what percentage of BMPs found within the endocytic pathway are located in the lysosome (vs. the late endosome)?</div>
+      <div class="eval-gt"><span class="k">ground truth →</span> The solution is: 95%</div>
+    </div>
+
+    <div class="evalcard">
+      <span class="eval-cat">supplementary_pdf</span>
+      <div class="eval-q">According to DOI 10.1101/2025.06.20.660799, what is the amplicon size (bp) of the PCR target used to detect <em>Clostridium beijerinckii</em> in the bacterial primer validation panel described in the supplementary methods?</div>
+      <div class="eval-gt"><span class="k">ground truth →</span> The solution is: 448</div>
+    </div>
+
+    <div class="evalcard">
+      <span class="eval-cat">supplementary_docx</span>
+      <div class="eval-q">According to DOI 10.1101/2025.04.25.650444, in the THP-1 monocyte differentiation experiments, what statistical test followed by what multiple-comparisons correction was used to assess differences in surface-marker expression?</div>
+      <div class="eval-gt"><span class="k">ground truth →</span> The solution is: Two-way ANOVA followed by Dunnett's multiple comparisons test</div>
     </div>
 
     <h2 id="sft">2 · Supervised Fine-Tuning</h2>
