@@ -217,6 +217,7 @@ hr{border:none;border-top:1px solid var(--border-light);margin:48px 0}
         <span class="tag">Qwen3-14B</span>
         <span class="tag">verl + GRPO</span>
         <span class="tag">paperclip MCP</span>
+        <a class="tag" href="https://github.com/binxu-collab/training_custom_paperclip_agent">Code ↗</a>
       </div>
     </div>
 
@@ -272,25 +273,25 @@ hr{border:none;border-top:1px solid var(--border-light);margin:48px 0}
 /papers/{uuid}/content.lines    <span class="c"># full text with block IDs</span>
 /papers/{uuid}/sections/        <span class="c"># sections</span>
 /papers/{uuid}/supplements/     <span class="c"># supplementary material</span></code></pre>
-    <p>The behavior contract (system prompt, <code>agents/papers/papers_reader.yaml</code>) is deliberately strict: <strong>do exactly what was asked, then stop.</strong> No over-delivery, no anticipating follow-ups — which makes both the SFT targets and the RL reward well-defined.</p>
+    <p>The behavior contract (system prompt, <code>training/papers_reader.yaml</code>) is deliberately strict: <strong>do exactly what was asked, then stop.</strong> No over-delivery, no anticipating follow-ups — which makes both the SFT targets and the RL reward well-defined.</p>
 
     <h2 id="pipeline">Overall Pipeline</h2>
     <p>Base model <code>Qwen/Qwen3-14B</code>; engine <a href="https://github.com/volcengine/verl">verl</a> + <code>verl-tool</code> (agentic tool-use), FSDP, LoRA (<code>r=16, α=32</code>). One corpus engine feeds all four stages.</p>
     <div class="phaseflow">
-      <div class="phasecard"><div class="ph-num">1</div><div><p class="ph-title">Distill — collect teacher traces</p><p class="ph-desc">Claude drives paperclip on real eval questions; full multi-turn transcripts are recorded and judged. <code>collect_sft_data.py</code> → <code>judge_accuracy.py</code></p></div></div>
+      <div class="phasecard"><div class="ph-num">1</div><div><p class="ph-title">Distill — collect teacher traces</p><p class="ph-desc">Claude drives paperclip on real eval questions; full multi-turn transcripts are recorded and judged. <code>collect_sft_data.py</code> → <code>eval_context_baseline.py</code></p></div></div>
       <div class="phasearrow">↓</div>
       <div class="phasecard"><div class="ph-num">2</div><div><p class="ph-title">SFT — imitate the trajectory</p><p class="ph-desc">Qwen3-14B + LoRA learns to emit the same tool calls + answers. <code>train_sft_32k_1ep.sh</code> (verl <code>MultiTurnSFTDataset</code>)</p></div></div>
       <div class="phasearrow">↓</div>
       <div class="phasecard"><div class="ph-num">3</div><div><p class="ph-title">RL — beat the imitation</p><p class="ph-desc">GRPO with the <em>live</em> paperclip tool in the loop; reward = correctness + conciseness. <code>train_rl.sh</code></p></div></div>
       <div class="phasearrow">↓</div>
-      <div class="phasecard"><div class="ph-num">4</div><div><p class="ph-title">Eval — end-to-end agent</p><p class="ph-desc">vLLM serves the checkpoint, runs the tool loop, Claude judges answers per category. <code>eval_with_tools.py</code></p></div></div>
+      <div class="phasecard"><div class="ph-num">4</div><div><p class="ph-title">Eval — end-to-end agent</p><p class="ph-desc">vLLM serves the checkpoint, runs the tool loop, Claude judges answers per category. <code>run_eval.sh</code></p></div></div>
     </div>
 
     <h2 id="data">1 · Data Collection (Distillation)</h2>
     <p>We do <strong>not</strong> hand-write trajectories. A strong teacher (Claude Sonnet 4.6, configured in <code>papers_reader.yaml</code>) answers real evaluation questions <em>while driving paperclip</em>, and we record the full multi-turn conversation.</p>
     <ul>
       <li><code>collect_sft_data.py</code> captures the complete trace — system prompt + every <code>tool_call</code> + every tool <strong>result</strong> + the final answer — rebuilt from the session DB so it is an exact, replayable transcript. <code>--only-passing</code> keeps only correct traces.</li>
-      <li><code>judge_accuracy.py</code> scores each final answer against ground-truth <code>criteria</code> (e.g. <code>"The solution is: 95%"</code>) with Claude → <code>{"pass": bool, "reason": str}</code>, reporting per-category accuracy.</li>
+      <li>The criteria judge in <code>eval_context_baseline.py</code> (<code>judge_answer()</code>) scores each final answer against ground-truth <code>criteria</code> (e.g. <code>"The solution is: 95%"</code>) with Claude → <code>{"pass": bool, "reason": str}</code>, reporting per-category accuracy; <code>collect_sft_data.py --judge-results</code> then keeps only passing traces.</li>
       <li><code>build_sft_data.sh</code> merges two sources — <code>xulong_*</code> (main-text QA) and <code>supp_*</code> (the harder supplementary split) — and <code>convert_to_sft_parquet.py</code> emits a <code>{messages, tools}</code> parquet the trainer reads directly.</li>
     </ul>
     <div class="statrow">
@@ -449,13 +450,11 @@ wrong answer        <span class="arrow">→</span> <span class="s">0.00</span></
 <span class="c"># GRPO · n=8 rollouts · batch 16 · lr 1e-6 · max_turns 8 · 5 epochs</span></code></pre>
 
     <h2 id="eval">4 · Evaluation</h2>
-    <p><code>eval_with_tools.py</code> measures the <em>end-to-end agent</em>, not next-token loss: vLLM serves the checkpoint (OpenAI-compatible), each question runs the full tool loop against the <strong>same paperclip MCP</strong>, and Claude judges final answers against the criteria — reported as per-category accuracy.</p>
-    <pre><code><span class="k">vllm</span> serve qwen_rl/checkpoints/global_step_100_merged --port <span class="n">8001</span>
-<span class="k">python</span> qwen_rl/eval_with_tools.py \
-    --vllm-url <span class="s">http://localhost:8001</span> \
-    --eval-file <span class="p">qwen_rl/data/_test_50.json</span> \
-    --output    <span class="p">qwen_rl/eval_results/step100.json</span></code></pre>
-    <p><strong>Baselines:</strong> <code>eval_context_baseline.py</code> answers the same questions with the relevant text pasted into the prompt and <em>no tools</em> (isolates “can it read?” from “can it retrieve?”); the frontier teacher’s accuracy from <code>judge_accuracy.py</code> is the distillation ceiling.</p>
+    <p><code>run_eval.sh</code> measures the <em>end-to-end agent</em>, not next-token loss: it serves the merged checkpoint on vLLM (OpenAI-compatible), runs the full tool loop for each question against the <strong>same paperclip MCP</strong>, and Claude judges final answers against the criteria — reported as per-category accuracy.</p>
+    <pre><code><span class="c"># launches vLLM, runs the tool loop per question, judges + scores</span>
+<span class="k">bash</span> qwen_rl/run_eval.sh --checkpoint global_step_100 --batch-size 4
+<span class="c"># → qwen_rl/eval_results/global_step_100_merged_bs4.json</span></code></pre>
+    <p><strong>Baselines:</strong> <code>eval_context_baseline.py</code> answers the same questions with the relevant text pasted into the prompt and <em>no tools</em> (isolates “can it read?” from “can it retrieve?”), judging every answer against the same <code>criteria</code>; the frontier teacher’s accuracy here is the distillation ceiling.</p>
 
     <h2 id="results">Results</h2>
     <p>The headline finding: a <strong>14B open model driving paperclip over MCP matches or beats frontier models that are handed the full paper</strong> — at the lowest latency. We compare against strong baselines reading the relevant paper text pasted directly into their context (no tool calls): Gemini 2.5 Flash, Gemini 3.1 Flash-lite, Claude Sonnet 4.6, and Claude Opus 4.7. Our model (<code>Q3-14B-SFT-MCP</code>) instead retrieves what it needs through paperclip.</p>
@@ -543,7 +542,7 @@ wrong answer        <span class="arrow">→</span> <span class="s">0.00</span></
       </div>
     </div>
     <div class="callout">A 14B model retrieving the right passages with paperclip is <strong>at least as accurate</strong> as frontier models given the whole paper, and <strong>faster</strong> — because it reads only what the question needs instead of ingesting full context. This is the thesis made concrete: put the intelligence in the tool, train a small policy to use it well. SFT already gets there; GRPO (RL) with the live tool in the loop sharpens it further — 94% at ~5.1 min — and targets the harder splits next.</div>
-    <p class="caption" style="text-align:left">Eval via <code>eval_with_tools.py</code> (ours, vLLM + paperclip loop) and full-context baselines, judged by Claude against ground-truth criteria. 100-question set, single-stream (concurrency = 1) for comparable wall-time.</p>
+    <p class="caption" style="text-align:left">Eval via <code>run_eval.sh</code> (ours, vLLM + paperclip loop) and <code>eval_context_baseline.py</code> (full-context baselines), judged by Claude against ground-truth criteria. 100-question set, single-stream (concurrency = 1) for comparable wall-time.</p>
 
     <h2 id="generalize">Generalizing: More Question Types &amp; Data Sources</h2>
     <p>The MCP design makes generalization cheap. The model only ever sees one tool, <code>paperclip(command=…)</code>, so a <strong>new question type is just a new command pattern</strong>, and a <strong>new corpus is just new content behind the same tool</strong>. The trained policy and its action space don’t change — two natural axes of growth fall out for free.</p>
@@ -567,6 +566,7 @@ wrong answer        <span class="arrow">→</span> <span class="s">0.00</span></
     <p>The 14B policy trained on biomedical preprints carries over to CS / physics / math on arXiv because it learned <strong>procedure</strong> — how to find, read, and cite — not domain facts. The corpus is the knowledge; the model just drives the tool. Broaden the corpus and the same model reaches further, with no change to its interface.</p>
 
     <h2 id="repro">Reproduction</h2>
+    <p>Everything below lives in the <a href="https://github.com/binxu-collab/training_custom_paperclip_agent"><code>training_custom_paperclip_agent</code></a> repo — the training/eval scripts under <code>training/</code>, the paperclip MCP server under <code>mcp_server/</code>; the <code>README</code> covers RunPod/H100 setup and dependencies.</p>
     <pre><code><span class="c"># 0. Start the paperclip MCP server (corpus engine) at :8083</span>
 
 <span class="c"># 1. Collect + judge teacher traces, build the SFT parquet</span>
@@ -592,7 +592,7 @@ wrong answer        <span class="arrow">→</span> <span class="s">0.00</span></
     </ul>
 
     <div class="blog-footer">
-      <p>Built on <a href="https://github.com/volcengine/verl">verl</a> + verl-tool · Qwen3-14B · paperclip MCP<br>
+      <p>Built on <a href="https://github.com/volcengine/verl">verl</a> + verl-tool · Qwen3-14B · paperclip MCP · <a href="https://github.com/binxu-collab/training_custom_paperclip_agent">code on GitHub</a><br>
       © 2026 GXL Research · This report documents methodology; the corpus engine and eval infra are separate components.</p>
     </div>
 
