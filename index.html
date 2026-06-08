@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Training a Custom Model for Deep Paper QA with Paperclip — GXL Blog</title>
+<meta name="description" content="Distilling an agentic teacher into a self-hostable Qwen3-14B that answers deep biomedical paper questions by driving paperclip over MCP — SFT, GRPO RL, and end-to-end eval.">
+<meta property="og:title" content="Training a Custom Model for Deep Paper QA with Paperclip as an MCP Tool">
+<meta property="og:description" content="A small open model whose only superpower is knowing how to drive a corpus engine well.">
+<meta property="og:type" content="article">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#ffffff; --bg-offset:#fafafa; --page:#f4f4f5;
+  --fg:#1a1a1a; --fg-secondary:#3d3d3d; --fg-muted:#6b7280;
+  --accent:#1e3a5f; --accent-light:#e8f0f7;
+  --border:#e5e5e5; --border-light:#f0f0f0; --code-bg:#f5f5f5;
+  --agent:#2d6a36; --agent-bg:#f4f7f4; --agent-border:#c0d8c0;
+  --baseline:#8b3a42; --baseline-bg:#f9f4f4; --baseline-border:#d8c0c0;
+  --cli:#16a34a;
+  --sans:'Inter',system-ui,-apple-system,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --header-h:56px;
+}
+*{box-sizing:border-box}
+html{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+body{margin:0;background:var(--page);font-family:var(--sans);color:var(--fg);font-weight:400}
+
+/* ── header ── */
+.blog-header{background:#fff;border-bottom:1px solid var(--border);height:var(--header-h);display:flex;align-items:center;position:sticky;top:0;z-index:100}
+.blog-header .inner{width:100%;max-width:1340px;margin:0 auto;padding:0 32px;display:flex;align-items:center;gap:16px}
+.blog-header .back{color:var(--fg-muted);font-size:14px;text-decoration:none;display:flex;align-items:center;gap:6px;transition:color .15s}
+.blog-header .back:hover{color:var(--accent)}
+.header-divider{width:1px;height:16px;background:var(--border)}
+.blog-header .title{font-size:14px;font-weight:600;color:var(--fg)}
+.blog-header .brand{margin-left:auto;font-size:13px;font-weight:600;letter-spacing:.04em;color:var(--accent)}
+
+/* ── grid ── */
+.blog-grid{display:grid;grid-template-columns:1fr;max-width:1340px;margin:0 auto;background:#fff;min-height:calc(100vh - var(--header-h))}
+.blog-toc{display:none}
+.blog-content{padding:2.2rem 1.4rem 4rem;max-width:920px;min-width:0;overflow-x:hidden}
+
+@media(min-width:980px){
+  .blog-grid{grid-template-columns:240px 1fr}
+  .blog-toc{display:block;padding:3rem 1rem 3rem 32px;position:sticky;top:var(--header-h);align-self:start;max-height:calc(100vh - var(--header-h));overflow-y:auto}
+  .blog-content{padding:3rem 3rem 5rem 3.5rem;border-left:1px solid var(--border-light)}
+}
+.blog-toc .toc-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--fg-muted);margin-bottom:14px}
+.blog-toc a{display:block;color:var(--fg-muted);text-decoration:none;font-size:13px;line-height:1.5;padding:5px 0;border-left:2px solid transparent;padding-left:12px;margin-left:-2px;transition:color .15s,border-color .15s}
+.blog-toc a:hover{color:var(--fg)}
+.blog-toc a.active{color:var(--accent);border-left-color:var(--accent);font-weight:500}
+
+/* ── hero ── */
+.hero{margin-bottom:8px}
+.hero .eyebrow{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:14px}
+.hero h1{font-size:2.05em;font-weight:700;line-height:1.18;letter-spacing:-.025em;margin:0 0 18px;color:var(--fg)}
+.hero .lede{font-size:1.08em;line-height:1.65;color:var(--fg-secondary);margin:0 0 22px;font-weight:300}
+.hero .byline{display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:13px;color:var(--fg-muted);padding-bottom:26px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.hero .byline .dot{width:3px;height:3px;border-radius:50%;background:var(--fg-muted)}
+.tag{display:inline-block;font-family:var(--mono);font-size:11px;background:var(--accent-light);color:var(--accent);padding:3px 9px;border-radius:4px;font-weight:500}
+
+/* ── typography ── */
+.blog-content h2{font-size:1.4em;font-weight:600;margin-top:64px;margin-bottom:20px;letter-spacing:-.02em;color:var(--fg);scroll-margin-top:72px}
+.blog-content h3{font-size:1.08em;font-weight:600;margin-top:40px;margin-bottom:14px;color:var(--fg);scroll-margin-top:72px}
+.blog-content p{margin:0 0 20px;color:var(--fg-secondary);line-height:1.78;font-size:.97em}
+.blog-content ul,.blog-content ol{color:var(--fg-secondary);line-height:1.75;font-size:.97em;padding-left:1.3em;margin:0 0 22px}
+.blog-content li{margin-bottom:8px}
+.blog-content strong{color:var(--fg);font-weight:600}
+.blog-content a{color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-light);transition:border-color .15s}
+.blog-content a:hover{border-bottom-color:var(--accent)}
+.blog-content code{font-family:var(--mono);font-size:.84em;background:var(--code-bg);padding:2px 6px;border-radius:3px;color:#9333ea}
+.blog-content pre{background:#1b182e;border:1px solid #2b2742;border-radius:8px;padding:18px 22px;overflow-x:auto;margin:22px 0 26px;font-size:.82em;line-height:1.65}
+.blog-content pre code{background:none;padding:0;color:#cdd6f4;font-size:1em}
+.blog-content pre .c{color:#7f849c}      /* comment */
+.blog-content pre .k{color:#cba6f7}      /* keyword */
+.blog-content pre .s{color:#a6e3a1}      /* string  */
+.blog-content pre .n{color:#fab387}      /* number/flag */
+.blog-content pre .p{color:#89b4fa}      /* path/key */
+hr{border:none;border-top:1px solid var(--border-light);margin:48px 0}
+
+/* ── tables ── */
+.tbl{width:100%;border-collapse:collapse;margin:6px 0 28px;font-size:.9em}
+.tbl th,.tbl td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--border-light)}
+.tbl th{font-weight:600;color:var(--fg);background:var(--bg-offset);font-size:.92em}
+.tbl td{color:var(--fg-secondary)}
+.tbl tr:last-child td{border-bottom:none}
+.tbl code{font-size:.92em}
+
+/* ── pipeline phaseflow ── */
+.phaseflow{display:flex;flex-direction:column;gap:0;margin:26px 0 30px}
+.phasecard{border:1px solid var(--border);border-radius:8px;padding:16px 18px;background:#fff;display:flex;gap:14px;align-items:flex-start}
+.ph-num{flex:none;width:26px;height:26px;border-radius:6px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;font-family:var(--mono)}
+.ph-title{font-weight:600;font-size:.96em;color:var(--fg);margin:0 0 3px}
+.ph-desc{font-size:.86em;color:var(--fg-muted);line-height:1.55;margin:0}
+.ph-desc code{font-size:.92em}
+.phasearrow{align-self:center;color:var(--border);font-size:18px;line-height:1;margin:5px 0}
+
+/* ── statusbox (smoke run) ── */
+.statusbox{background:#1b182e;border:1px solid #2b2742;border-radius:8px;padding:16px 20px;font-family:var(--mono);font-size:.82em;line-height:1.85;margin:22px 0 12px;overflow-x:auto;color:#cdd6f4}
+.statusbox .step{color:#89b4fa}
+.statusbox .ok{color:#a6e3a1}
+.statusbox .dim{color:#7f849c}
+.statusbox .arrow{color:#fab387}
+
+/* ── comparison grid ── */
+.cmp-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:26px 0 30px}
+@media(max-width:620px){.cmp-grid{grid-template-columns:1fr}}
+.cmp-side{border-radius:10px;padding:18px 20px;border:1px solid}
+.cmp-side.bad{background:var(--baseline-bg);border-color:var(--baseline-border)}
+.cmp-side.good{background:var(--agent-bg);border-color:var(--agent-border)}
+.cmp-head{font-size:.78em;font-weight:600;text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.cmp-head.bad{color:var(--baseline)}
+.cmp-head.good{color:var(--agent)}
+.cmp-dot{width:8px;height:8px;border-radius:50%}
+.cmp-dot.bad{background:var(--baseline)}
+.cmp-dot.good{background:var(--agent)}
+.cmp-item{font-size:.88em;color:var(--fg-secondary);line-height:1.55;margin-bottom:9px;padding-left:18px;position:relative}
+.cmp-item:before{content:"";position:absolute;left:2px;top:8px;width:5px;height:5px;border-radius:50%}
+.cmp-side.bad .cmp-item:before{background:var(--baseline-border)}
+.cmp-side.good .cmp-item:before{background:var(--agent-border)}
+.cmp-item:last-child{margin-bottom:0}
+
+/* ── stat row ── */
+.statrow{display:flex;flex-wrap:wrap;gap:14px;margin:24px 0 30px}
+.statcard{flex:1;min-width:120px;border:1px solid var(--border);border-radius:8px;padding:16px 18px;background:#fff}
+.statcard .num{font-size:1.7em;font-weight:700;color:var(--accent);font-family:var(--mono);letter-spacing:-.02em}
+.statcard .lbl{font-size:.78em;color:var(--fg-muted);margin-top:4px;line-height:1.4}
+
+/* ── hbar chart ── */
+.hbar{margin:24px 0 12px}
+.hbar-row{display:flex;align-items:center;gap:12px;margin-bottom:9px;font-size:.85em}
+.hbar-name{flex:none;width:92px;color:var(--fg-secondary);text-align:right;font-family:var(--mono);font-size:.92em}
+.hbar-track{flex:1;background:var(--border-light);border-radius:4px;height:18px;overflow:hidden}
+.hbar-fill{height:100%;background:var(--accent);border-radius:4px}
+.hbar-fill.alt{background:var(--agent)}
+.hbar-val{flex:none;width:54px;color:var(--fg-muted);font-family:var(--mono);font-size:.86em}
+.caption{font-size:.8em;color:var(--fg-muted);text-align:center;margin-top:6px;font-style:italic}
+
+/* ── callout ── */
+.callout{background:var(--accent-light);border-left:3px solid var(--accent);border-radius:0 6px 6px 0;padding:14px 18px;margin:22px 0;font-size:.9em;color:var(--fg-secondary);line-height:1.65}
+.callout strong{color:var(--accent)}
+
+/* ── footer ── */
+.blog-footer{margin-top:4rem;padding-top:2rem;border-top:1px solid var(--border-light);text-align:center;color:var(--fg-muted);font-size:13px;line-height:1.7}
+.blog-footer a{color:var(--accent);text-decoration:none}
+</style>
+</head>
+<body>
+
+<header class="blog-header">
+  <div class="inner">
+    <a class="back" href="https://gxl.ai/blog">← Blog</a>
+    <span class="header-divider"></span>
+    <span class="title">Training a Custom Model for Deep Paper QA</span>
+    <span class="brand">GXL</span>
+  </div>
+</header>
+
+<div class="blog-grid">
+
+  <!-- TOC -->
+  <nav class="blog-toc">
+    <div class="toc-label">Contents</div>
+    <a href="#motivation">Motivation</a>
+    <a href="#tool">The Tool: Paperclip / MCP</a>
+    <a href="#pipeline">Overall Pipeline</a>
+    <a href="#data">1 · Data Collection</a>
+    <a href="#sft">2 · Supervised Fine-Tuning</a>
+    <a href="#rl">3 · Reinforcement Learning</a>
+    <a href="#eval">4 · Evaluation</a>
+    <a href="#repro">Reproduction</a>
+    <a href="#lessons">Design Notes</a>
+  </nav>
+
+  <!-- CONTENT -->
+  <article class="blog-content">
+
+    <div class="hero">
+      <div class="eyebrow">Methods · Model Training</div>
+      <h1>Training a Custom Model for Deep Paper QA with Paperclip as an MCP Tool</h1>
+      <p class="lede">A small, open-weight model whose only superpower is knowing how to drive a corpus engine <em>well</em>. We distill an agentic teacher into Qwen3-14B with SFT, then sharpen its tool use and answer accuracy with RL — the intelligence lives in the tool, the discipline lives in the policy.</p>
+      <div class="byline">
+        <span>GXL Research</span><span class="dot"></span>
+        <span>June 2026</span><span class="dot"></span>
+        <span class="tag">Qwen3-14B</span>
+        <span class="tag">verl + GRPO</span>
+        <span class="tag">paperclip MCP</span>
+      </div>
+    </div>
+
+    <h2 id="motivation">Motivation</h2>
+    <p>State-of-the-art “deep research” over the scientific literature today is done by large frontier models (Claude, GPT, Gemini) driving search/read tools in a loop. It works — but it is expensive (many frontier calls over long contexts per question), closed (you cannot self-host, fine-tune, or run offline), and hard to control (answer style, citation discipline, and stopping behavior are baked into a model you do not own).</p>
+    <p>The thesis of this project: <strong>the hard part of paper QA is not raw model intelligence — it is disciplined tool use over a good corpus.</strong> If a model can (a) find the right paper, (b) read exactly the right passages, and (c) stop and answer concisely, then a 14B open model is enough. The intelligence lives in the <em>tool</em> (paperclip, indexing 8M+ papers); the policy we train just has to use it well.</p>
+
+    <div class="cmp-grid">
+      <div class="cmp-side bad">
+        <div class="cmp-head bad"><span class="cmp-dot bad"></span>Frontier model + tools</div>
+        <div class="cmp-item">Many frontier calls per question over long context</div>
+        <div class="cmp-item">Closed — no self-hosting, no fine-tuning, no offline</div>
+        <div class="cmp-item">Behavior baked into a model you don’t own</div>
+      </div>
+      <div class="cmp-side good">
+        <div class="cmp-head good"><span class="cmp-dot good"></span>Custom 14B + paperclip</div>
+        <div class="cmp-item">Cheap, self-hostable, runs anywhere the corpus is reachable</div>
+        <div class="cmp-item">Knowledge lives in the corpus — update it, model is current</div>
+        <div class="cmp-item">Policy trained for <em>your</em> answer + citation discipline</div>
+      </div>
+    </div>
+
+    <h3>Why MCP?</h3>
+    <p>We expose paperclip as a <strong>Model Context Protocol (MCP)</strong> server. MCP gives us one clean contract that is identical across three very different consumers — so a trajectory the teacher produced is <em>replayable</em> by the student, and a policy trained in RL behaves identically at eval time. The model only ever sees <strong>one tool</strong>, <code>paperclip(command=…)</code>, and learns to compose shell-like commands against it.</p>
+    <table class="tbl">
+      <tr><th>Consumer</th><th>How it reaches paperclip</th></tr>
+      <tr><td>Teacher (Claude, data collection)</td><td>MCP tool call</td></tr>
+      <tr><td>RL rollouts (verl-tool actor)</td><td>HTTP MCP tool server</td></tr>
+      <tr><td>Eval / production (vLLM checkpoint)</td><td>same MCP endpoint</td></tr>
+    </table>
+
+    <h2 id="tool">The Tool: Paperclip over MCP</h2>
+    <p><strong>Paperclip</strong> is a CLI/HTTP engine over 8M+ full-text papers (bioRxiv, medRxiv, PubMed Central). The agent calls a single MCP tool and passes a shell-like command string:</p>
+    <pre><code><span class="c">// the only tool the model ever sees</span>
+{
+  <span class="p">"name"</span>: <span class="s">"paperclip"</span>,
+  <span class="p">"arguments"</span>: {
+    <span class="p">"command"</span>: <span class="s">"lookup doi 10.1101/2025.11.22.689941"</span>,
+    <span class="p">"description"</span>: <span class="s">"Locate the paper by DOI"</span>
+  }
+}</code></pre>
+    <p>Core commands the policy learns to compose:</p>
+    <ul>
+      <li><code>search "&lt;query&gt;"</code> — hybrid BM25 + vector search across the corpus</li>
+      <li><code>grep "&lt;regex&gt;" /papers/</code> — sub-second server-side regex over all 8M papers</li>
+      <li><code>lookup doi &lt;DOI&gt;</code> — resolve a paper and <code>cd</code> into its directory</li>
+      <li><code>cat</code> / <code>head</code> / <code>sed</code> / <code>scan file "p1" "p2"</code> — targeted reads of <code>content.lines</code></li>
+      <li><code>lookup-citation</code> — find every in-text mention of a reference</li>
+      <li><code>map</code> / <code>sql</code> — fan-out over many papers / structured queries</li>
+    </ul>
+    <p>Each paper is a small read-only filesystem the agent navigates:</p>
+    <pre><code>/papers/{uuid}/meta.json        <span class="c"># title, authors, doi</span>
+/papers/{uuid}/content.lines    <span class="c"># full text with block IDs</span>
+/papers/{uuid}/sections/        <span class="c"># sections</span>
+/papers/{uuid}/supplements/     <span class="c"># supplementary material</span></code></pre>
+    <p>The behavior contract (system prompt, <code>agents/papers/papers_reader.yaml</code>) is deliberately strict: <strong>do exactly what was asked, then stop.</strong> No over-delivery, no anticipating follow-ups — which makes both the SFT targets and the RL reward well-defined.</p>
+
+    <h2 id="pipeline">Overall Pipeline</h2>
+    <p>Base model <code>Qwen/Qwen3-14B</code>; engine <a href="https://github.com/volcengine/verl">verl</a> + <code>verl-tool</code> (agentic tool-use), FSDP, LoRA (<code>r=16, α=32</code>). One corpus engine feeds all four stages.</p>
+    <div class="phaseflow">
+      <div class="phasecard"><div class="ph-num">1</div><div><p class="ph-title">Distill — collect teacher traces</p><p class="ph-desc">Claude drives paperclip on real eval questions; full multi-turn transcripts are recorded and judged. <code>collect_sft_data.py</code> → <code>judge_accuracy.py</code></p></div></div>
+      <div class="phasearrow">↓</div>
+      <div class="phasecard"><div class="ph-num">2</div><div><p class="ph-title">SFT — imitate the trajectory</p><p class="ph-desc">Qwen3-14B + LoRA learns to emit the same tool calls + answers. <code>train_sft_32k_1ep.sh</code> (verl <code>MultiTurnSFTDataset</code>)</p></div></div>
+      <div class="phasearrow">↓</div>
+      <div class="phasecard"><div class="ph-num">3</div><div><p class="ph-title">RL — beat the imitation</p><p class="ph-desc">GRPO with the <em>live</em> paperclip tool in the loop; reward = correctness + conciseness. <code>train_rl.sh</code></p></div></div>
+      <div class="phasearrow">↓</div>
+      <div class="phasecard"><div class="ph-num">4</div><div><p class="ph-title">Eval — end-to-end agent</p><p class="ph-desc">vLLM serves the checkpoint, runs the tool loop, Claude judges answers per category. <code>eval_with_tools.py</code></p></div></div>
+    </div>
+
+    <h2 id="data">1 · Data Collection (Distillation)</h2>
+    <p>We do <strong>not</strong> hand-write trajectories. A strong teacher (Claude Sonnet 4.6, configured in <code>papers_reader.yaml</code>) answers real evaluation questions <em>while driving paperclip</em>, and we record the full multi-turn conversation.</p>
+    <ul>
+      <li><code>collect_sft_data.py</code> captures the complete trace — system prompt + every <code>tool_call</code> + every tool <strong>result</strong> + the final answer — rebuilt from the session DB so it is an exact, replayable transcript. <code>--only-passing</code> keeps only correct traces.</li>
+      <li><code>judge_accuracy.py</code> scores each final answer against ground-truth <code>criteria</code> (e.g. <code>"The solution is: 95%"</code>) with Claude → <code>{"pass": bool, "reason": str}</code>, reporting per-category accuracy.</li>
+      <li><code>build_sft_data.sh</code> merges two sources — <code>xulong_*</code> (main-text QA) and <code>supp_*</code> (the harder supplementary split) — and <code>convert_to_sft_parquet.py</code> emits a <code>{messages, tools}</code> parquet the trainer reads directly.</li>
+    </ul>
+    <div class="statrow">
+      <div class="statcard"><div class="num">1,353</div><div class="lbl">multi-turn traces (final SFT set)</div></div>
+      <div class="statcard"><div class="num">~11</div><div class="lbl">avg turns / trace (up to 87)</div></div>
+      <div class="statcard"><div class="num">5,347</div><div class="lbl">tool-call ↔ result turns</div></div>
+    </div>
+    <div class="hbar">
+      <div class="hbar-row"><span class="hbar-name">assistant</span><span class="hbar-track"><span class="hbar-fill" style="width:100%"></span></span><span class="hbar-val">6,700</span></div>
+      <div class="hbar-row"><span class="hbar-name">tool</span><span class="hbar-track"><span class="hbar-fill alt" style="width:79.8%"></span></span><span class="hbar-val">5,347</span></div>
+      <div class="hbar-row"><span class="hbar-name">user</span><span class="hbar-track"><span class="hbar-fill" style="width:20.2%;opacity:.5"></span></span><span class="hbar-val">1,353</span></div>
+      <div class="hbar-row"><span class="hbar-name">system</span><span class="hbar-track"><span class="hbar-fill" style="width:20.2%;opacity:.5"></span></span><span class="hbar-val">1,353</span></div>
+      <div class="caption">Message-role distribution across the SFT set — loss is applied to assistant turns only.</div>
+    </div>
+
+    <h2 id="sft">2 · Supervised Fine-Tuning</h2>
+    <p>We teach the student to <em>imitate the teacher’s tool-use trajectory</em>. Training uses verl’s <code>MultiTurnSFTDataset</code>, which applies the Qwen3 chat template with the <code>paperclip</code> tool attached, tokenizes the whole conversation, and <strong>masks the loss to assistant turns only</strong> — the model learns to produce tool calls and final answers, never tool outputs or the user turn.</p>
+    <div class="callout"><strong>Qwen3 <code>&lt;think&gt;</code> handling.</strong> Qwen3’s template strips <code>&lt;think&gt;…&lt;/think&gt;</code> from <em>historical</em> assistant turns but keeps it on the current one, so per-turn re-tokenization drifts a few tokens from a single full pass. The dataset detects this and falls back to the concatenated per-turn tokens (<code>Token mismatch detected … Using concatenated version</code>). This is expected, not an error.</div>
+    <pre><code><span class="k">python</span> -m verl.trainer.sft_trainer \
+    data.train_files=<span class="p">merged_biomedrxiv_sft_train.parquet</span> \
+    data.messages_key=<span class="n">messages</span>  data.tools_key=<span class="n">tools</span> \
+    data.max_length=<span class="n">32768</span>  data.truncation=<span class="n">right</span> \
+    data.pad_mode=<span class="n">no_padding</span>  data.train_batch_size=<span class="n">8</span> \
+    model.path=<span class="p">Qwen/Qwen3-14B</span> \
+    model.lora_rank=<span class="n">16</span>  model.lora_alpha=<span class="n">32</span> \
+    model.enable_gradient_checkpointing=<span class="n">True</span> \
+    engine.model_dtype=<span class="n">bfloat16</span> \
+    trainer.total_epochs=<span class="n">1</span>  trainer.save_freq=<span class="n">50</span></code></pre>
+    <ul>
+      <li><strong>LoRA</strong> (<code>r=16, α=32</code>) over <code>all-linear</code> — only the adapter trains; the 14B base stays frozen, keeping checkpoints tiny and training cheap.</li>
+      <li><strong>No-padding packing</strong> up to 32k tokens — agent traces are long.</li>
+      <li><strong>Context length drives memory.</strong> A single 80 GB GPU does <em>not</em> fit 32k with offload off (the 14B base alone sits at ~56 GB, then 32k activations OOM). Either reduce to 8k context or enable FSDP offload: <code>engine.param_offload=True optimizer_offload=True model.enable_activation_offload=True</code>.</li>
+    </ul>
+    <h3>Validated smoke run — RunPod A100 80 GB</h3>
+    <p>A fresh A100 80 GB pod (8k context + offload) trained cleanly to a saved checkpoint:</p>
+    <div class="statusbox"><span class="step">step:1</span>  &nbsp;loss <span class="ok">0.825</span>  &nbsp;grad_norm 1.04  &nbsp;<span class="dim">mfu 0.45</span>
+<span class="step">step:5</span>  &nbsp;loss <span class="ok">0.301</span>  &nbsp;grad_norm 0.49  &nbsp;<span class="dim">mfu 0.56</span>
+<span class="step">step:10</span> &nbsp;loss <span class="ok">0.217</span>  &nbsp;grad_norm 0.16  &nbsp;<span class="dim">mfu 0.55</span>  <span class="arrow">→ checkpoint saved ✓</span></div>
+    <p>Environment pins that matter (driver CUDA 12.5 on the test pod): <code>torch==2.6.0+cu124</code> (newer cu12.8/cu13 wheels need a newer driver), <code>transformers==4.52.4</code> (Qwen3 support, avoids v5 churn), prebuilt <code>flash-attn==2.7.4.post1</code> for <code>cu12/torch2.6/py311</code>, <code>tensordict==0.7.2</code> (matches torch 2.6), plus <code>ray</code>, <code>hydra-core</code>, <code>orjson</code>. Remove the <code>pyext</code> dep from <code>verl-tool</code> (uses <code>inspect.getargspec</code>, gone in Py 3.11).</p>
+    <p>After training, <code>merge_sft_checkpoint.py</code> folds the LoRA adapter into the base weights for a standalone HF model used by RL and serving.</p>
+
+    <h2 id="rl">3 · Reinforcement Learning (GRPO)</h2>
+    <p>SFT gives a student that <em>mimics</em> the teacher. RL makes it <em>better</em> by optimizing directly for correct, efficient answers — with the <strong>real paperclip tool in the loop</strong>. We use <strong>GRPO</strong> (Group Relative Policy Optimization) via verl-tool’s agentic PPO trainer.</p>
+    <ul>
+      <li><strong>Agentic rollouts:</strong> the policy emits <code>&lt;tool_call&gt;…&lt;/tool_call&gt;</code>, a tool server executes it against the live MCP, the observation is fed back, repeat up to <code>max_turns=8</code>. Tool-result tokens are <strong>masked</strong> from the policy loss (<code>mask_observations=True</code>).</li>
+      <li><strong>GRPO group:</strong> <code>n=8</code> rollouts per prompt; advantages are relative to the group mean — no learned critic.</li>
+      <li><strong>Tool server:</strong> <code>verl_tool.servers.serve --tool_type http_mcp</code> wraps paperclip; the actor POSTs actions and gets observations.</li>
+      <li><strong>Policy:</strong> LoRA on the merged SFT checkpoint, FSDP with param/optimizer offload, vLLM for fast rollout generation.</li>
+    </ul>
+    <h3>Reward — <code>reward_manager=biomedrxiv</code></h3>
+    <p>Ground truth is a criterion like <code>"The solution is: ~20 kcal/mol"</code>. The reward encodes the project thesis directly: <strong>be correct, be grounded in the paper, be concise.</strong></p>
+    <pre><code><span class="c"># 1. correctness — normalized substring OR numeric proximity (15% tol)</span>
+<span class="c"># 2. token-efficiency bonus (only when correct):</span>
+score = accuracy*(<span class="n">1</span>-w) + efficiency*w + tool_bonus
+       <span class="c"># w=0.2,  efficiency = 1 - tokens/max_tokens</span>
+<span class="c"># 3. +0.1 tool-use bonus for any valid tool call</span>
+
+correct in  <span class="n">400</span> tok  <span class="arrow">→</span> <span class="s">0.98</span>
+correct in <span class="n">4000</span> tok  <span class="arrow">→</span> <span class="s">0.80</span>
+wrong answer        <span class="arrow">→</span> <span class="s">0.00</span></code></pre>
+    <pre><code><span class="k">bash</span> qwen_rl/train_rl.sh --checkpoint global_step_100
+<span class="c"># GRPO · n=8 rollouts · batch 16 · lr 1e-6 · max_turns 8 · 5 epochs</span></code></pre>
+
+    <h2 id="eval">4 · Evaluation</h2>
+    <p><code>eval_with_tools.py</code> measures the <em>end-to-end agent</em>, not next-token loss: vLLM serves the checkpoint (OpenAI-compatible), each question runs the full tool loop against the <strong>same paperclip MCP</strong>, and Claude judges final answers against the criteria — reported as per-category accuracy.</p>
+    <pre><code><span class="k">vllm</span> serve qwen_rl/checkpoints/global_step_100_merged --port <span class="n">8001</span>
+<span class="k">python</span> qwen_rl/eval_with_tools.py \
+    --vllm-url <span class="s">http://localhost:8001</span> \
+    --eval-file <span class="p">qwen_rl/data/_test_50.json</span> \
+    --output    <span class="p">qwen_rl/eval_results/step100.json</span></code></pre>
+    <p><strong>Baselines:</strong> <code>eval_context_baseline.py</code> answers the same questions with the relevant text pasted into the prompt and <em>no tools</em> (isolates “can it read?” from “can it retrieve?”); the frontier teacher’s accuracy from <code>judge_accuracy.py</code> is the distillation ceiling.</p>
+
+    <h2 id="repro">Reproduction</h2>
+    <pre><code><span class="c"># 0. Start the paperclip MCP server (corpus engine) at :8083</span>
+
+<span class="c"># 1. Collect + judge teacher traces, build the SFT parquet</span>
+<span class="k">bash</span> qwen_rl/build_sft_data.sh        <span class="c"># → 1,353 traces</span>
+
+<span class="c"># 2. SFT (single A100 80GB: 8k context or enable offload)</span>
+<span class="k">bash</span> qwen_rl/train_sft_32k_1ep.sh
+<span class="k">python</span> qwen_rl/merge_sft_checkpoint.py --checkpoint &lt;ckpt&gt; --output &lt;ckpt&gt;_merged
+
+<span class="c"># 3. RL with the live tool in the loop (GRPO)</span>
+<span class="k">bash</span> qwen_rl/train_rl.sh --checkpoint global_step_100
+
+<span class="c"># 4. Evaluate end-to-end</span>
+<span class="k">bash</span> qwen_rl/run_eval.sh --checkpoint global_step_100 --batch-size 4</code></pre>
+
+    <h2 id="lessons">Design Notes &amp; Lessons</h2>
+    <ul>
+      <li><strong>The tool is the model’s knowledge.</strong> We never fine-tune facts into weights; the model learns <em>procedure</em>. Update the corpus and the model is instantly current.</li>
+      <li><strong>One tool, many commands.</strong> A single <code>command</code>-string tool (instead of dozens of typed tools) keeps the action space small and lets the policy reuse shell idioms it already knows.</li>
+      <li><strong>Mask everything that isn’t the policy’s voice.</strong> SFT (assistant-only loss) and RL (<code>mask_observations</code>) train only on the model’s own tokens — tool outputs are context, never targets.</li>
+      <li><strong>Reward conciseness, not just correctness.</strong> The token-efficiency term fights the “dump the whole paper” failure mode and matches the strict system-prompt contract.</li>
+      <li><strong>Distill → RL, in that order.</strong> SFT reaches teacher-imitation; GRPO with a correctness reward and the real tool pushes past it on the hard supplementary split.</li>
+    </ul>
+
+    <div class="blog-footer">
+      <p>Built on <a href="https://github.com/volcengine/verl">verl</a> + verl-tool · Qwen3-14B · paperclip MCP<br>
+      © 2026 GXL Research · This report documents methodology; the corpus engine and eval infra are separate components.</p>
+    </div>
+
+  </article>
+</div>
+
+<script>
+// TOC active-section highlight
+const links=[...document.querySelectorAll('.blog-toc a')];
+const map=new Map(links.map(a=>[a.getAttribute('href').slice(1),a]));
+const obs=new IntersectionObserver((es)=>{
+  es.forEach(e=>{if(e.isIntersecting){links.forEach(l=>l.classList.remove('active'));map.get(e.target.id)?.classList.add('active');}});
+},{rootMargin:'-72px 0px -70% 0px'});
+document.querySelectorAll('.blog-content h2[id],.blog-content h3[id]').forEach(h=>obs.observe(h));
+</script>
+</body>
+</html>
