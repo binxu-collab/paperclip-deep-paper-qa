@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Training a Custom Model for Deep Paper QA with Paperclip — GXL Blog</title>
+<title>Training a Custom Agent for Deep Paper QA with Paperclip — GXL Blog</title>
 <meta name="description" content="Distilling an agentic teacher into a self-hostable Qwen3-14B that answers deep biomedical paper questions by driving paperclip over MCP — SFT, GRPO RL, and end-to-end eval.">
-<meta property="og:title" content="Training a Custom Model for Deep Paper QA with Paperclip as an MCP Tool">
-<meta property="og:description" content="A small open model whose only superpower is knowing how to drive a corpus engine well.">
+<meta property="og:title" content="Training a Custom Agent for Deep Paper QA with Paperclip as an MCP Tool">
+<meta property="og:description" content="A side project at GXL: a small open agent trained to drive paperclip, our corpus engine over 8M+ papers, so deep paper QA runs on a model we own.">
 <meta property="og:type" content="article">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -180,7 +180,7 @@ hr{border:none;border-top:1px solid var(--border-light);margin:48px 0}
   <div class="inner">
     <a class="back" href="https://gxl.ai/blog">← Blog</a>
     <span class="header-divider"></span>
-    <span class="title">Training a Custom Model for Deep Paper QA</span>
+    <span class="title">Training a Custom Agent for Deep Paper QA</span>
     <span class="brand">GXL</span>
   </div>
 </header>
@@ -208,9 +208,9 @@ hr{border:none;border-top:1px solid var(--border-light);margin:48px 0}
   <article class="blog-content">
 
     <div class="hero">
-      <div class="eyebrow">Methods · Model Training</div>
-      <h1>Training a Custom Model for Deep Paper QA with Paperclip as an MCP Tool</h1>
-      <p class="lede">A small, open-weight model whose only superpower is knowing how to drive a corpus engine <em>well</em>. We distill an agentic teacher into Qwen3-14B with SFT, then sharpen its tool use and answer accuracy with RL — the intelligence lives in the tool, the discipline lives in the policy.</p>
+      <div class="eyebrow">Methods · Agent Training</div>
+      <h1>Training a Custom Agent for Deep Paper QA with Paperclip as an MCP Tool</h1>
+      <p class="lede">A side project at GXL. Our product is <a href="https://paperclip.gxl.ai/docs">paperclip</a> — a corpus engine over 8M+ full-text papers; the default way to ask it deep questions is to point a frontier model at it. Here we build the companion piece: a small, open-weight agent (Qwen3-14B) trained to drive paperclip <em>itself</em>, so the literature QA runs on a model we own. We distill an agentic teacher with SFT, then sharpen its tool use and accuracy with RL — the intelligence lives in the tool, the discipline in the policy.</p>
       <div class="byline">
         <span>GXL Research</span><span class="dot"></span>
         <span>June 2026</span><span class="dot"></span>
@@ -221,8 +221,8 @@ hr{border:none;border-top:1px solid var(--border-light);margin:48px 0}
     </div>
 
     <h2 id="motivation">Motivation</h2>
-    <p>State-of-the-art “deep research” over the scientific literature today is done by large frontier models (Claude, GPT, Gemini) driving search/read tools in a loop. It works — but it is expensive (many frontier calls over long contexts per question), closed (you cannot self-host, fine-tune, or run offline), and hard to control (answer style, citation discipline, and stopping behavior are baked into a model you do not own).</p>
-    <p>The thesis of this project: <strong>the hard part of paper QA is not raw model intelligence — it is disciplined tool use over a good corpus.</strong> If a model can (a) find the right paper, (b) read exactly the right passages, and (c) stop and answer concisely, then a 14B open model is enough. The intelligence lives in the <em>tool</em> (paperclip, indexing 8M+ papers); the policy we train just has to use it well.</p>
+    <p>At GXL the core product is <strong>paperclip</strong> (<a href="https://paperclip.gxl.ai/docs">paperclip.gxl.ai</a>) — a search/read engine over 8M+ full-text scientific papers. Out of the box you query it by pointing a frontier model (Claude, GPT, Gemini) at its commands and letting it loop. That works, but renting a frontier model for every question is expensive (many calls over long contexts), closed (you can’t self-host, fine-tune, or run offline), and hard to control (answer style, citation discipline, and stopping behavior live in a model you don’t own).</p>
+    <p>So this is the companion piece: a small agent that drives our own engine instead of renting one. The bet — <strong>the hard part of paper QA is not raw model intelligence, it is disciplined tool use over a good corpus.</strong> If an agent can (a) find the right paper, (b) read exactly the right passages, and (c) stop and answer concisely, a 14B open model is enough. The intelligence already lives in the <em>tool</em> (paperclip); the policy we train just has to use it well.</p>
 
     <div class="cmp-grid">
       <div class="cmp-side bad">
@@ -232,7 +232,7 @@ hr{border:none;border-top:1px solid var(--border-light);margin:48px 0}
         <div class="cmp-item">Behavior baked into a model you don’t own</div>
       </div>
       <div class="cmp-side good">
-        <div class="cmp-head good"><span class="cmp-dot good"></span>Custom 14B + paperclip</div>
+        <div class="cmp-head good"><span class="cmp-dot good"></span>Our 14B agent + paperclip</div>
         <div class="cmp-item">Cheap, self-hostable, runs anywhere the corpus is reachable</div>
         <div class="cmp-item">Knowledge lives in the corpus — update it, model is current</div>
         <div class="cmp-item">Policy trained for <em>your</em> answer + citation discipline</div>
