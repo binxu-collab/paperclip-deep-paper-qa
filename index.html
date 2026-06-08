@@ -152,6 +152,10 @@ hr{border:none;border-top:1px solid var(--border-light);margin:48px 0}
 .ex-step{font-family:var(--mono);font-size:.8em;color:var(--fg-secondary);background:var(--bg-offset);border:1px solid var(--border-light);border-radius:5px;padding:7px 10px;margin:5px 0;overflow-x:auto;white-space:nowrap}
 .ex-step b{color:var(--accent);font-weight:500}
 .ex-tool{font-size:.78em;color:var(--fg-muted);font-style:italic;margin:2px 0 2px 10px}
+.ex-turn{margin:10px 0}
+.ex-out{font-family:var(--mono);font-size:.74em;color:#cdd6f4;background:#1b182e;border:1px solid #2b2742;border-radius:6px;padding:10px 12px;margin:4px 0 0;white-space:pre-wrap;word-break:break-word;overflow-x:auto;max-height:230px;overflow-y:auto;line-height:1.55}
+.ex-out .hl{color:#a6e3a1}
+.ex-out .mut{color:#7f849c}
 .ex-ans{margin-top:12px;padding:10px 14px;background:var(--agent-bg);border-left:3px solid var(--agent);border-radius:0 6px 6px 0;font-size:.88em;color:var(--fg-secondary);line-height:1.55}
 .ex-ans b{color:var(--agent)}
 .evalcard{border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin:12px 0;background:#fff}
@@ -308,30 +312,69 @@ hr{border:none;border-top:1px solid var(--border-light);margin:48px 0}
 
     <div class="ex">
       <div class="ex-lbl">Question</div>
-      <div class="ex-q">What p-value was reported for the effect of optogenetic inhibition during the embryonic critical period on the transient sodium current (I<sub>NaT</sub>) amplitude in A31k interneurons at the third-instar larval stage? <span class="doi">DOI 10.64898/2025.12.01.691172</span></div>
-      <div class="ex-step">▸ paperclip <b>lookup doi 10.64898/2025.12.01.691172</b></div>
-      <div class="ex-tool">→ found 1 paper · cd into /papers/c791…ada4b</div>
-      <div class="ex-step">▸ paperclip <b>scan content.lines "I_NaT" "INaT" "sodium current" "A31k"</b></div>
-      <div class="ex-tool">→ matching passages with block IDs</div>
-      <div class="ex-ans"><b>Answer:</b> <b>p = 0.034</b> — “Optogenetic inhibition between 17–19 h AEL decreases I<sub>NaT</sub> in A31k in L3 larva (unpaired t test, t(19) = 2.279, p = 0.034, n = 10, 11).”</div>
+      <div class="ex-q">According to paper DOI: <span class="doi">10.64898/2025.12.01.691172</span>, what was the p-value reported for the effect of optogenetic inhibition during the embryonic critical period on the transient sodium current (I<sub>NaT</sub>) amplitude in A31k interneurons at the third-instar larval stage?</div>
+      <div class="ex-turn">
+        <div class="ex-step">▸ paperclip <b>lookup doi 10.64898/2025.12.01.691172</b></div>
+        <div class="ex-out"><span class="mut">[⏱️ 109ms]</span> Found 1 paper where doi contains '10.64898/2025.12.01.691172':
+  1. Neuronal excitability is permanently altered by activity manipulation during an embryonic critical period in Drosophila
+     doc_id: c7917965-77c4-1014-90f6-f0cbc6bada4b
+     Coulson, Davies, Pettini, Landgraf*, Baines* · 2025-12-01
+<span class="mut">(auto-cd to /papers/c7917965-…/ · content.lines (354 lines), sections/, supplements/, figures/)</span></div>
+      </div>
+      <div class="ex-turn">
+        <div class="ex-step">▸ paperclip <b>scan content.lines "I_NaT" "INaT" "sodium current" "A31k" "transient sodium"</b></div>
+        <div class="ex-out">5 patterns, 34 total matches in content.lines
+<span class="hl">&gt; L29: Figure 4: Activity-induced alteration of I_NaT … C: Optogenetic inhibition between 17–19 h AEL decreases I_NaT in A31k in L3 larva (unpaired t test, t(19) = 2.279, p = 0.034, n = 10, 11).</span>
+<span class="mut">[… large response (92 KB) truncated — answer-bearing match shown]</span></div>
+      </div>
+      <div class="ex-ans"><b>Answer:</b> <b>p = 0.034</b> — “Optogenetic inhibition between 17–19 h AEL decreases I<sub>NaT</sub> in A31k in L3 larva (unpaired t test, t(19) = 2.279, p = 0.034, n = 10, 11).” <code>{citation: doc c791…ada4b, line 29}</code></div>
     </div>
 
     <div class="ex">
       <div class="ex-lbl">Question</div>
-      <div class="ex-q">What was the mean size (in nm) of microglial extracellular vesicles as characterized by tunable resistive pulse sensing (TRPS)? <span class="doi">DOI 10.1101/2025.02.28.640756</span></div>
-      <div class="ex-step">▸ paperclip <b>lookup doi 10.1101/2025.02.28.640756</b></div>
-      <div class="ex-step">▸ paperclip <b>scan content.lines "TRPS" "tunable resistive pulse" "mean size" "nm"</b></div>
-      <div class="ex-tool">→ matching passages with block IDs</div>
-      <div class="ex-ans"><b>Answer:</b> Mean size <b>186.8 ± 11 nm</b> (mode 130.6 ± 7.8 nm). <code>{citation: doc 13fb…b2ce, line 26}</code></div>
+      <div class="ex-q">According to paper DOI: <span class="doi">10.1101/2025.02.28.640756</span>, what was the mean size (in nm) of microglial extracellular vesicles as characterized by tunable resistive pulse sensing (TRPS)?</div>
+      <div class="ex-turn">
+        <div class="ex-step">▸ paperclip <b>lookup doi 10.1101/2025.02.28.640756</b></div>
+        <div class="ex-out"><span class="mut">[⏱️ 101ms]</span> Found 1 paper where doi contains '10.1101/2025.02.28.640756':
+  1. MICROGLIAL EXTRACELLULAR VESICLES MEDIATE C1Q DEPOSITION AT THE PRE-SYNAPSE AND PROMOTE SYNAPTIC PRUNING
+     doc_id: 13fb823f-729a-1014-9b93-c2207bf1b2ce
+     D'Arrigo, Cutugno, Golia, … Gabrielli*, Verderio* · 2025-02-28
+<span class="mut">(auto-cd to /papers/13fb823f-…/ · content.lines (225 lines), sections/, supplements/, figures/)</span></div>
+      </div>
+      <div class="ex-turn">
+        <div class="ex-step">▸ paperclip <b>scan content.lines "TRPS" "tunable resistive pulse" "mean size" "nm"</b></div>
+        <div class="ex-out">4 patterns, 23 total matches in content.lines
+[TRPS] 14 match(es)
+<span class="hl">&gt; L26: … tunable resistive pulse sensing (TRPS), that measures EV size and concentration. These analyses showed that most EVs were round in shape … and had a mean size of 186.8 ± 11nm and mode of 130.6± 7.8nm (Fig. 1C).</span>
+<span class="mut">[… large response (119 KB) truncated — answer-bearing match shown]</span></div>
+      </div>
+      <div class="ex-ans"><b>Answer:</b> Mean size <b>186.8 ± 11 nm</b>, with a mode of 130.6 ± 7.8 nm. <code>{citation: doc 13fb…b2ce, line 26}</code></div>
     </div>
 
     <div class="ex">
       <div class="ex-lbl">Question</div>
-      <div class="ex-q">In the dietary &amp; lifestyle questionnaire, how many distinct answer options are provided for the question about the type of oil or fat used most often for cooking? <span class="doi">DOI 10.1101/2025.07.31.667939</span></div>
-      <div class="ex-step">▸ paperclip <b>lookup doi 10.1101/2025.07.31.667939</b></div>
-      <div class="ex-step">▸ paperclip <b>scan content.lines "oil" "fat" "cooking" "frying"</b></div>
-      <div class="ex-tool">→ 4 patterns, 16 matches across the questionnaire</div>
-      <div class="ex-ans"><b>Answer:</b> Question 30 (“What type of oil or fat do you use most often for cooking?”) provides <b>6 distinct answer options</b>. <code>{citation: doc d068…824d, line 250}</code></div>
+      <div class="ex-q">According to paper DOI: <span class="doi">10.1101/2025.07.31.667939</span>, in the dietary and lifestyle questionnaire administered to study participants, how many distinct answer options are provided for the question about the type of oil or fat used most often for cooking?</div>
+      <div class="ex-turn">
+        <div class="ex-step">▸ paperclip <b>lookup doi 10.1101/2025.07.31.667939</b></div>
+        <div class="ex-out"><span class="mut">[⏱️ 111ms]</span> Found 1 paper where doi contains '10.1101/2025.07.31.667939':
+  1. Using low pass whole metagenome sequencing for gut microbiome profiling in an Argentine urban population
+     doc_id: d0681e3d-6e64-1014-9d7c-db312141824d
+     Trotta*, Rohr, Benavidez, Vazquez* · 2025-07-31
+<span class="mut">(auto-cd to /papers/d0681e3d-…/ · content.lines (272 lines), sections/, supplements/, figures/)</span></div>
+      </div>
+      <div class="ex-turn">
+        <div class="ex-step">▸ paperclip <b>scan content.lines "oil" "fat" "cooking" "frying"</b></div>
+        <div class="ex-out">4 patterns, 16 total matches in content.lines
+<span class="hl">&gt; L178: **30. What type of oil or fat do you use most often for cooking?**
+&gt; L179: - Corn or sunflower oil
+  - Olive oil
+  - Canola or high-oleic sunflower oil
+  - Butter or margarine
+  - Coconut oil
+  - Other</span>
+<span class="mut">[… 12 K-token response truncated — question 30 block shown]</span></div>
+      </div>
+      <div class="ex-ans"><b>Answer:</b> Question 30 (“What type of oil or fat do you use most often for cooking?”) provides <b>6 distinct answer options</b>: Corn/sunflower oil, Olive oil, Canola/high-oleic sunflower oil, Butter/margarine, Coconut oil, Other. <code>{citation: doc d068…824d, lines 250–251}</code></div>
     </div>
 
     <h3>Eval items — question + machine-checkable ground truth</h3>

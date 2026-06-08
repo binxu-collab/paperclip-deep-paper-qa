@@ -166,27 +166,61 @@ trainer reads directly:
 ### Data examples
 
 **Training traces (SFT)** — full multi-turn transcripts; loss is on the assistant
-turns only (tool results abbreviated):
+turns only. Tool outputs below are verbatim excerpts of what `lookup`/`scan`
+returned (large `scan` responses are truncated to the answer-bearing match).
 
-```
-Q: p-value for optogenetic inhibition's effect on I_NaT amplitude in A31k
-   interneurons at L3?  (DOI 10.64898/2025.12.01.691172)
- → paperclip: lookup doi 10.64898/2025.12.01.691172
- → paperclip: scan content.lines "I_NaT" "INaT" "sodium current" "A31k"
- A: p = 0.034.
+````
+Q: According to paper DOI: 10.64898/2025.12.01.691172, what was the p-value
+   reported for the effect of optogenetic inhibition during the embryonic
+   critical period on the transient sodium current (I_NaT) amplitude in A31k
+   interneurons at the third-instar larval stage?
 
-Q: mean size (nm) of microglial extracellular vesicles by TRPS?
-   (DOI 10.1101/2025.02.28.640756)
- → paperclip: lookup doi 10.1101/2025.02.28.640756
- → paperclip: scan content.lines "TRPS" "tunable resistive pulse" "mean size" "nm"
- A: 186.8 ± 11 nm (mode 130.6 ± 7.8 nm).   {citation: doc 13fb…b2ce, line 26}
+ ▸ paperclip lookup doi 10.64898/2025.12.01.691172
+   Found 1 paper: "Neuronal excitability is permanently altered by activity
+   manipulation during an embryonic critical period in Drosophila"
+   doc_id c7917965-…  (auto-cd; content.lines 354 lines, sections/, supplements/)
 
-Q: # of answer options for the cooking oil/fat question in the diet questionnaire?
-   (DOI 10.1101/2025.07.31.667939)
- → paperclip: lookup doi 10.1101/2025.07.31.667939
- → paperclip: scan content.lines "oil" "fat" "cooking" "frying"
- A: Question 30 provides 6 distinct answer options.   {citation: doc d068…824d, line 250}
-```
+ ▸ paperclip scan content.lines "I_NaT" "INaT" "sodium current" "A31k" "transient sodium"
+   5 patterns, 34 total matches
+   > L29: Figure 4 … C: Optogenetic inhibition between 17–19 h AEL decreases I_NaT
+     in A31k in L3 larva (unpaired t test, t(19) = 2.279, p = 0.034, n = 10, 11).
+   [… 92 KB response truncated]
+
+ A: p = 0.034 — "Optogenetic inhibition between 17–19 h AEL decreases I_NaT in
+    A31k in L3 larva (unpaired t test, t(19) = 2.279, p = 0.034, n = 10, 11)."
+    {citation: doc c791…ada4b, line 29}
+----------------------------------------------------------------------------
+Q: According to paper DOI: 10.1101/2025.02.28.640756, what was the mean size
+   (in nm) of microglial extracellular vesicles characterized by TRPS?
+
+ ▸ paperclip lookup doi 10.1101/2025.02.28.640756
+   Found 1 paper: "Microglial extracellular vesicles mediate C1q deposition …"
+   doc_id 13fb823f-…  (auto-cd; content.lines 225 lines)
+
+ ▸ paperclip scan content.lines "TRPS" "tunable resistive pulse" "mean size" "nm"
+   4 patterns, 23 total matches
+   > L26: … tunable resistive pulse sensing (TRPS) … had a mean size of
+     186.8 ± 11nm and mode of 130.6± 7.8nm (Fig. 1C).
+   [… 119 KB response truncated]
+
+ A: mean size 186.8 ± 11 nm, mode 130.6 ± 7.8 nm.   {citation: doc 13fb…b2ce, line 26}
+----------------------------------------------------------------------------
+Q: According to paper DOI: 10.1101/2025.07.31.667939, in the dietary and
+   lifestyle questionnaire, how many distinct answer options are provided for
+   the question about the type of oil or fat used most often for cooking?
+
+ ▸ paperclip lookup doi 10.1101/2025.07.31.667939
+   Found 1 paper: "Using low pass whole metagenome sequencing for gut microbiome
+   profiling in an Argentine urban population"  doc_id d0681e3d-…
+
+ ▸ paperclip scan content.lines "oil" "fat" "cooking" "frying"
+   4 patterns, 16 total matches
+   > L178: **30. What type of oil or fat do you use most often for cooking?**
+   > L179: - Corn or sunflower oil / - Olive oil / - Canola or high-oleic
+     sunflower oil / - Butter or margarine / - Coconut oil / - Other
+
+ A: Question 30 provides 6 distinct answer options.   {citation: doc d068…824d, lines 250–251}
+````
 
 **Eval items** — question + machine-checkable ground truth (`"The solution is: X"`),
 across `main_text` and `supplementary_*` splits:
