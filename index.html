@@ -198,6 +198,7 @@ hr{border:none;border-top:1px solid var(--border-light);margin:48px 0}
     <a href="#rl">3 · Reinforcement Learning</a>
     <a href="#eval">4 · Evaluation</a>
     <a href="#results">Results</a>
+    <a href="#generalize">Generalizing</a>
     <a href="#repro">Reproduction</a>
     <a href="#lessons">Design Notes</a>
   </nav>
@@ -479,6 +480,27 @@ wrong answer        <span class="arrow">→</span> <span class="s">0.00</span></
     </div>
     <div class="callout">A 14B model retrieving the right passages with paperclip is <strong>at least as accurate</strong> as frontier models given the whole paper, and <strong>faster</strong> — because it reads only what the question needs instead of ingesting full context. This is the thesis made concrete: put the intelligence in the tool, train a small policy to use it well. Note these numbers are from the SFT checkpoint; GRPO targets the harder splits next.</div>
     <p class="caption" style="text-align:left">Eval via <code>eval_with_tools.py</code> (ours, vLLM + paperclip loop) and full-context baselines, judged by Claude against ground-truth criteria. 100-question set, single-stream (concurrency = 1) for comparable wall-time.</p>
+
+    <h2 id="generalize">Generalizing: More Question Types &amp; Data Sources</h2>
+    <p>The MCP design makes generalization cheap. The model only ever sees one tool, <code>paperclip(command=…)</code>, so a <strong>new question type is just a new command pattern</strong>, and a <strong>new corpus is just new content behind the same tool</strong>. The trained policy and its action space don’t change — two natural axes of growth fall out for free.</p>
+
+    <h3>More question types — citations</h3>
+    <p>Beyond fact-extraction QA, the same agent already handles <strong>citation questions</strong> — “where in this paper is reference <code>[15]</code> / <em>Smith 2020</em> / a given DOI discussed?” — via the <code>lookup-citation</code> command, which finds every in-text mention of a reference (by number, author/year, or DOI) with surrounding context and block IDs:</p>
+    <pre><code><span class="k">paperclip</span> lookup-citation <span class="s">"Smith 2020"</span>   <span class="c"># by author / year</span>
+<span class="k">paperclip</span> lookup-citation <span class="s">"[15]"</span>         <span class="c"># by reference number</span>
+<span class="k">paperclip</span> lookup-citation <span class="s">"10.1101/…"</span>    <span class="c"># by DOI</span></code></pre>
+    <p>Citation grounding is already first-class and <em>machine-checkable</em>. The system prompt mandates that every claim carry a structured citation — a block ID plus the exact sentence it came from (you can see these in the training answers above):</p>
+    <pre><code>{{<span class="p">"block_id"</span>: <span class="s">"aexlhvf"</span>, <span class="p">"content"</span>: <span class="s">"a 3.5-fold increase in binding affinity after optimization"</span>}}
+<span class="c"># content must be a verbatim substring of block [aexlhvf]</span></code></pre>
+    <div class="callout">Because a citation is structured (a block ID + a verbatim quote), it can be <strong>verified automatically</strong>: the block must exist and <code>content</code> must be a literal substring of it — no LLM judge needed for the grounding check. That makes “answer <em>with correct citations</em>” a clean, cheap reward signal — a natural next training/eval axis on top of the answer-correctness reward used today.</div>
+
+    <h3>More data sources — arXiv (and beyond)</h3>
+    <p>paperclip already spans <strong>bioRxiv, medRxiv, and PubMed Central</strong>; the same engine is extending to <strong>arXiv</strong> (the reader’s contract already lists arXiv as a supported source, and arXiv ID resolution is being hardened). Adding a corpus is a <strong>resolver/index change, not a model change</strong>:</p>
+    <pre><code><span class="c"># the same commands work unchanged over a new corpus</span>
+<span class="k">paperclip</span> search <span class="s">"diffusion model sampler"</span>      <span class="c"># now also arXiv cs.LG</span>
+<span class="k">paperclip</span> lookup arxiv <span class="n">2406.12345</span>
+<span class="k">paperclip</span> scan content.lines <span class="s">"theorem"</span> <span class="s">"bound"</span></code></pre>
+    <p>The 14B policy trained on biomedical preprints carries over to CS / physics / math on arXiv because it learned <strong>procedure</strong> — how to find, read, and cite — not domain facts. The corpus is the knowledge; the model just drives the tool. Broaden the corpus and the same model reaches further, with no change to its interface.</p>
 
     <h2 id="repro">Reproduction</h2>
     <pre><code><span class="c"># 0. Start the paperclip MCP server (corpus engine) at :8083</span>

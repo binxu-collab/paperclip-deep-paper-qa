@@ -402,7 +402,31 @@ of ingesting the whole paper. These numbers are from the **SFT checkpoint**
 `eval_with_tools.py` and full-context baselines, judged by Claude against
 ground-truth criteria.
 
-## 9. Reproduction
+## 9. Generalizing: More Question Types & Data Sources
+
+The MCP design makes generalization cheap: the model only ever sees
+`paperclip(command=…)`, so a **new question type is just a new command pattern**
+and a **new corpus is just new content behind the same tool** — the policy and its
+action space don't change.
+
+**More question types — citations.** Beyond fact-extraction, the same agent handles
+citation questions ("where is `[15]` / *Smith 2020* / DOI X discussed?") via
+`lookup-citation`. Citations are already first-class and machine-checkable: the
+system prompt mandates a structured citation per claim —
+`{{"block_id": "aexlhvf", "content": "<verbatim sentence from that block>"}}`.
+Because a citation is a block ID + a verbatim quote, it can be verified
+**automatically** (block exists ∧ `content` is a literal substring) — no LLM judge
+needed — making "answer *with correct citations*" a clean next reward signal.
+
+**More data sources — arXiv (and beyond).** paperclip already spans bioRxiv,
+medRxiv, and PMC; it is extending to **arXiv** (already listed as a supported source
+in the reader contract; arXiv ID resolution being hardened). Adding a corpus is a
+resolver/index change, not a model change — `search`, `grep`, `lookup`, `scan`,
+`lookup-citation` all work unchanged. The 14B policy carries over to CS / physics /
+math on arXiv because it learned **procedure** (how to find, read, cite), not domain
+facts. Broaden the corpus and the same model reaches further.
+
+## 10. Reproduction
 
 ```bash
 # 0. Start the paperclip MCP server (corpus engine) at :8083
@@ -432,7 +456,7 @@ cd /workspace/gxl/qwen_rl && bash train_sft_32k_1ep.sh  # train
 
 ---
 
-## 10. Design Notes & Lessons
+## 11. Design Notes & Lessons
 
 - **The tool is the model's knowledge.** We never fine-tune facts into weights; the
   model learns *procedure*. Update the corpus, and the model is instantly current.
