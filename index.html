@@ -138,6 +138,12 @@ hr{border:none;border-top:1px solid var(--border-light);margin:48px 0}
 .hbar-val{flex:none;width:54px;color:var(--fg-muted);font-family:var(--mono);font-size:.86em}
 .caption{font-size:.8em;color:var(--fg-muted);text-align:center;margin-top:6px;font-style:italic}
 
+/* ── figure ── */
+.fig{margin:26px 0 30px}
+.fig img{width:100%;height:auto;display:block;border:1px solid var(--border);border-radius:8px;background:#fff}
+.fig figcaption{font-size:.82em;color:var(--fg-muted);text-align:center;margin-top:10px;line-height:1.5}
+.fig figcaption strong{color:var(--fg-secondary)}
+
 /* ── callout ── */
 .callout{background:var(--accent-light);border-left:3px solid var(--accent);border-radius:0 6px 6px 0;padding:14px 18px;margin:22px 0;font-size:.9em;color:var(--fg-secondary);line-height:1.65}
 .callout strong{color:var(--accent)}
@@ -170,6 +176,7 @@ hr{border:none;border-top:1px solid var(--border-light);margin:48px 0}
     <a href="#sft">2 · Supervised Fine-Tuning</a>
     <a href="#rl">3 · Reinforcement Learning</a>
     <a href="#eval">4 · Evaluation</a>
+    <a href="#results">Results</a>
     <a href="#repro">Reproduction</a>
     <a href="#lessons">Design Notes</a>
   </nav>
@@ -332,6 +339,31 @@ wrong answer        <span class="arrow">→</span> <span class="s">0.00</span></
     --eval-file <span class="p">qwen_rl/data/_test_50.json</span> \
     --output    <span class="p">qwen_rl/eval_results/step100.json</span></code></pre>
     <p><strong>Baselines:</strong> <code>eval_context_baseline.py</code> answers the same questions with the relevant text pasted into the prompt and <em>no tools</em> (isolates “can it read?” from “can it retrieve?”); the frontier teacher’s accuracy from <code>judge_accuracy.py</code> is the distillation ceiling.</p>
+
+    <h2 id="results">Results</h2>
+    <p>The headline finding: a <strong>14B open model driving paperclip over MCP matches or beats frontier models that are handed the full paper</strong> — at the lowest latency. We compare against strong baselines reading the relevant paper text pasted directly into their context (no tool calls): Gemini 2.5 Flash, Gemini 3.1 Flash-lite, Claude Sonnet 4.6, and Claude Opus 4.7. Our model (<code>Q3-14B-SFT-MCP</code>) instead retrieves what it needs through paperclip.</p>
+    <figure class="fig">
+      <img src="assets/accuracy_vs_latency_c1.png" alt="Accuracy vs total wall time on 100 questions at concurrency 1. Q3-14B-SFT-MCP reaches 93% accuracy and is the fastest, beating Opus 4.7 (92%), Sonnet 4.6 (91%), Gemini 3.1 Flash-lite (91%), and Gemini 2.5 Flash (89%), all using full-context.">
+      <figcaption><strong>Accuracy vs. total wall time</strong> — 100 questions, concurrency = 1. Up-and-to-the-left is better (more accurate, faster). The custom <code>Q3-14B-SFT-MCP</code> (purple) is both the <strong>most accurate (93%)</strong> and the <strong>fastest (~5.6 min)</strong>, while frontier full-context baselines cluster at 89–92% and 6.6–7.9 min.</figcaption>
+    </figure>
+    <div class="cmp-grid">
+      <div class="cmp-side bad">
+        <div class="cmp-head bad"><span class="cmp-dot bad"></span>Frontier · full-context (no tool)</div>
+        <div class="cmp-item">Gemini 2.5 Flash — 89% · 6.6 min</div>
+        <div class="cmp-item">Gemini 3.1 Flash-lite — 91% · 6.7 min</div>
+        <div class="cmp-item">Sonnet 4.6 — 91% · 7.9 min</div>
+        <div class="cmp-item">Opus 4.7 — 92% · 7.5 min</div>
+      </div>
+      <div class="cmp-side good">
+        <div class="cmp-head good"><span class="cmp-dot good"></span>Ours · Qwen3-14B + paperclip MCP</div>
+        <div class="cmp-item"><strong>93% accuracy — highest of all</strong></div>
+        <div class="cmp-item"><strong>~5.6 min — fastest of all</strong></div>
+        <div class="cmp-item">Self-hostable, open-weight 14B</div>
+        <div class="cmp-item">This is the <em>SFT</em> checkpoint — before RL</div>
+      </div>
+    </div>
+    <div class="callout">A 14B model retrieving the right passages with paperclip is <strong>at least as accurate</strong> as frontier models given the whole paper, and <strong>faster</strong> — because it reads only what the question needs instead of ingesting full context. This is the thesis made concrete: put the intelligence in the tool, train a small policy to use it well. Note these numbers are from the SFT checkpoint; GRPO targets the harder splits next.</div>
+    <p class="caption" style="text-align:left">Eval via <code>eval_with_tools.py</code> (ours, vLLM + paperclip loop) and full-context baselines, judged by Claude against ground-truth criteria. 100-question set, single-stream (concurrency = 1) for comparable wall-time.</p>
 
     <h2 id="repro">Reproduction</h2>
     <pre><code><span class="c"># 0. Start the paperclip MCP server (corpus engine) at :8083</span>

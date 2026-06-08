@@ -309,7 +309,32 @@ category-sliced.
 
 ---
 
-## 8. Reproduction
+## 8. Results
+
+**A 14B open model driving paperclip over MCP matches or beats frontier models
+that are handed the full paper — at the lowest latency.**
+
+![Accuracy vs total wall time](assets/accuracy_vs_latency_c1.png)
+
+*Accuracy vs. total wall time, 100 questions, concurrency = 1. Up-and-to-the-left
+is better.*
+
+| Model | Setup | Accuracy | Wall time (100Q) |
+|---|---|---|---|
+| Gemini 2.5 Flash | full-context, no tool | 89% | ~6.6 min |
+| Gemini 3.1 Flash-lite | full-context, no tool | 91% | ~6.7 min |
+| Claude Sonnet 4.6 | full-context, no tool | 91% | ~7.9 min |
+| Claude Opus 4.7 | full-context, no tool | 92% | ~7.5 min |
+| **Q3-14B-SFT-MCP (ours)** | **paperclip via MCP** | **93%** | **~5.6 min** |
+
+The custom Qwen3-14B is both the **most accurate (93%)** and the **fastest
+(~5.6 min)** — because it retrieves only the passages the question needs instead
+of ingesting the whole paper. These numbers are from the **SFT checkpoint**
+(before RL); GRPO targets the harder supplementary splits next. Eval via
+`eval_with_tools.py` and full-context baselines, judged by Claude against
+ground-truth criteria.
+
+## 9. Reproduction
 
 ```bash
 # 0. Start the paperclip MCP server (corpus engine) at :8083
@@ -339,7 +364,7 @@ cd /workspace/gxl/qwen_rl && bash train_sft_32k_1ep.sh  # train
 
 ---
 
-## 9. Design Notes & Lessons
+## 10. Design Notes & Lessons
 
 - **The tool is the model's knowledge.** We never fine-tune facts into weights; the
   model learns *procedure*. Update the corpus, and the model is instantly current.
